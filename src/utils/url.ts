@@ -42,6 +42,36 @@ export function parseOwnerRepo(url: URL): { owner?: string; repo?: string } {
   return {};
 }
 
+/**
+ * Check if we're running in Gitea Actions environment
+ * Gitea Actions sets GITEA_ACTIONS=true or uses GITHUB_* vars with non-GitHub URLs
+ */
+export function isGiteaActionsEnvironment(env?: Record<string, string | undefined>): boolean {
+  const e = env || process.env;
+  // Explicit Gitea indicator
+  if (e.GITEA_ACTIONS === 'true' || e.GITEA_ACTIONS === '1') {
+    return true;
+  }
+  // Gitea-specific workspace
+  if (e.GITEA_WORKSPACE) {
+    return true;
+  }
+  // GITHUB_SERVER_URL pointing to non-GitHub (Gitea compatibility mode)
+  const serverUrl = e.GITHUB_SERVER_URL;
+  if (serverUrl) {
+    try {
+      const url = new URL(serverUrl);
+      // If GITHUB_SERVER_URL doesn't point to github.com, it's likely Gitea
+      if (!url.hostname.includes('github.com') && !url.hostname.includes('github.io')) {
+        return true;
+      }
+    } catch {
+      // Invalid URL, can't determine
+    }
+  }
+  return false;
+}
+
 export function collectCandidateUrls(options: CandidateUrlOptions, logger?: Logger): string[] {
   const urls: string[] = [];
   const pushUnique = (value: string | undefined): void => {
@@ -58,17 +88,27 @@ export function collectCandidateUrls(options: CandidateUrlOptions, logger?: Logg
   pushUnique(options.originUrl);
 
   const env = options.env || process.env;
-  const envUrls = [
-    env.GITHUB_SERVER_URL,
-    env.GITHUB_API_URL,
-    env.GITEA_SERVER_URL,
-    env.GITEA_API_URL,
-    env.BITBUCKET_SERVER_URL,
-    env.BITBUCKET_API_URL
-  ];
-  for (const envUrl of envUrls) {
-    pushUnique(envUrl);
+
+  // If we detect Gitea Actions environment, prioritize Gitea URLs
+  const isGitea = isGiteaActionsEnvironment(env);
+  if (isGitea) {
+    logger?.debug('Detected Gitea Actions environment');
+    // Add Gitea URLs first for priority
+    pushUnique(env.GITEA_SERVER_URL);
+    pushUnique(env.GITEA_API_URL);
+    // In Gitea, GITHUB_SERVER_URL points to the Gitea server
+    pushUnique(env.GITHUB_SERVER_URL);
+    pushUnique(env.GITHUB_API_URL);
+  } else {
+    // Standard order
+    pushUnique(env.GITHUB_SERVER_URL);
+    pushUnique(env.GITHUB_API_URL);
+    pushUnique(env.GITEA_SERVER_URL);
+    pushUnique(env.GITEA_API_URL);
   }
+
+  pushUnique(env.BITBUCKET_SERVER_URL);
+  pushUnique(env.BITBUCKET_API_URL);
 
   for (const extraUrl of options.extraUrls || []) {
     pushUnique(extraUrl);

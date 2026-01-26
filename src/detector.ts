@@ -9,7 +9,7 @@ import {
   Provider,
   ProviderId
 } from './types';
-import { collectCandidateUrls, parseOwnerRepo, toUrl } from './utils/url';
+import { collectCandidateUrls, isGiteaActionsEnvironment, parseOwnerRepo, toUrl } from './utils/url';
 
 export type DetectOptions = {
   requestedProvider?: string;
@@ -44,6 +44,13 @@ function resolveRepoInfo(urlInput?: string, provider?: Provider): { owner?: stri
 export async function detectPlatform(options: DetectOptions): Promise<DetectionResult> {
   const logger = getLogger(options.logger);
   const providers = options.providers && options.providers.length > 0 ? options.providers : getBuiltInProviders();
+
+  // Early detection: if we're in Gitea Actions environment, prefer Gitea provider
+  const env = options.env || process.env;
+  const isGiteaEnv = isGiteaActionsEnvironment(env);
+  if (isGiteaEnv) {
+    logger.debug('Gitea Actions environment detected - will prefer Gitea provider');
+  }
 
   const candidateUrls = collectCandidateUrls(
     {
@@ -97,6 +104,32 @@ export async function detectPlatform(options: DetectOptions): Promise<DetectionR
       };
     }
     fallbackMatch = match;
+  }
+
+  // If we detected Gitea Actions environment but no specific provider matched,
+  // fall back to Gitea provider instead of generic
+  if (isGiteaEnv && (!fallbackMatch || fallbackMatch.provider.id === 'generic')) {
+    const giteaProvider = providers.find(provider => provider.id === 'gitea');
+    if (giteaProvider) {
+      logger.debug('Falling back to Gitea provider based on environment detection');
+      const baseUrl = giteaProvider.determineBaseUrl(candidateUrls) || env.GITHUB_SERVER_URL || env.GITEA_SERVER_URL;
+      const repoInfo = resolveRepoInfo(candidateUrls[0], giteaProvider);
+      return {
+        providerId: giteaProvider.id,
+        baseUrl,
+        owner: repoInfo.owner,
+        repo: repoInfo.repo,
+        confidence: 0.7, // High confidence from environment detection
+        evidence: [
+          ...allEvidence,
+          {
+            type: 'fallback',
+            providerId: giteaProvider.id,
+            detail: 'Gitea Actions environment detected (GITEA_ACTIONS, GITEA_WORKSPACE, or non-GitHub GITHUB_SERVER_URL)'
+          }
+        ]
+      };
+    }
   }
 
   if (fallbackMatch) {
