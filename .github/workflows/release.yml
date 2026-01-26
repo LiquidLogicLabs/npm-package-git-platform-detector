@@ -24,8 +24,9 @@ jobs:
     needs: ci
     runs-on: ubuntu-latest
     env:
-      NPM_REGISTRY_URL: ${{ vars.NPM_REGISTRY_URL }}
-      NPM_REGISTRY_USERNAME: ${{ vars.NPM_REGISTRY_USERNAME }}
+      # Support both vars (GitHub/Gitea Actions) and env vars (act testing)
+      NPM_REGISTRY_URL: ${{ vars.NPM_REGISTRY_URL || env.NPM_REGISTRY_URL }}
+      NPM_REGISTRY_USERNAME: ${{ vars.NPM_REGISTRY_USERNAME || env.NPM_REGISTRY_USERNAME }}
       NPM_REGISTRY_TOKEN: ${{ secrets.NPM_REGISTRY_TOKEN }}
     steps:
       - name: Checkout code
@@ -89,37 +90,11 @@ jobs:
 
       - name: Publish package to registry
         if: env.NPM_REGISTRY_URL != '' && env.NPM_REGISTRY_TOKEN != ''
-        run: |
-          # Configure Gitea registry only for publishing (not for installing dependencies)
-          REGISTRY_URL="${NPM_REGISTRY_URL%/}/"
-          # Remove protocol and trailing slash for auth scope
-          REGISTRY_AUTH_SCOPE=$(echo "$REGISTRY_URL" | sed -e 's#^https\\?://##' -e 's#/*$##')
-          
-          # Debug: show configured registry (without sensitive data)
-          echo "::debug::Publishing to registry: ${REGISTRY_URL}"
-          echo "::debug::Auth scope: //${REGISTRY_AUTH_SCOPE}/"
-          echo "::debug::Username: ${NPM_REGISTRY_USERNAME:-not set}"
-          
-          # Configure .npmrc for Gitea npm registry
-          # For Gitea, use _authToken format (Gitea npm registry expects token directly, not base64)
-          echo "//${REGISTRY_AUTH_SCOPE}/:_authToken=${NPM_REGISTRY_TOKEN}" >> ~/.npmrc
-          if [ -n "$NPM_REGISTRY_USERNAME" ]; then
-            echo "//${REGISTRY_AUTH_SCOPE}/:username=${NPM_REGISTRY_USERNAME}" >> ~/.npmrc
-          fi
-          echo "//${REGISTRY_AUTH_SCOPE}/:always-auth=true" >> ~/.npmrc
-          
-          # Verify .npmrc was created (show structure without secrets)
-          echo "::debug::.npmrc configured for scope: //${REGISTRY_AUTH_SCOPE}/"
-          if [ -f ~/.npmrc ]; then
-            echo "::debug::.npmrc file exists"
-            # Show non-sensitive parts of .npmrc
-            grep -v "_auth" ~/.npmrc | grep -v "authToken" || echo "::debug::(auth lines hidden)"
-          else
-            echo "::warning::.npmrc file was not created"
-          fi
-          
-          # Publish to the custom registry
-          npm publish --registry "${REGISTRY_URL}"
+        uses: JS-DevTools/npm-publish@v4
+        with:
+          token: ${{ secrets.NPM_REGISTRY_TOKEN }}
+          registry: ${{ vars.NPM_REGISTRY_URL || env.NPM_REGISTRY_URL }}
+          ignore-scripts: true
 
       - name: Release Summary
         run: |
