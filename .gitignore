@@ -24,3 +24,6 @@ pnpm-debug.log*
 # Test coverage
 coverage/
 .nyc_output/
+
+# Act secrets (local testing)
+.github/workflows/.act/.secrets
