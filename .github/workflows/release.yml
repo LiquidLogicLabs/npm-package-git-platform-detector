@@ -96,12 +96,19 @@ jobs:
           REGISTRY_AUTH_SCOPE=$(echo "$REGISTRY_URL" | sed -e 's#^https\\?://##' -e 's#/*$##')
           
           # Configure .npmrc for Gitea npm registry
-          # Use npm config set for _authToken and username
-          npm config set "//${REGISTRY_AUTH_SCOPE}/:_authToken" "${NPM_REGISTRY_TOKEN}"
+          # For Gitea, create base64 encoded auth (username:token format)
           if [ -n "$NPM_REGISTRY_USERNAME" ]; then
-            npm config set "//${REGISTRY_AUTH_SCOPE}/:username" "${NPM_REGISTRY_USERNAME}"
+            AUTH_STRING="${NPM_REGISTRY_USERNAME}:${NPM_REGISTRY_TOKEN}"
+          else
+            AUTH_STRING=":${NPM_REGISTRY_TOKEN}"
           fi
-          # always-auth must be written directly to .npmrc (not via npm config set)
+          AUTH_BASE64=$(echo -n "$AUTH_STRING" | base64 -w 0)
+          
+          # Write authentication to .npmrc
+          echo "//${REGISTRY_AUTH_SCOPE}/:_auth=${AUTH_BASE64}" >> ~/.npmrc
+          if [ -n "$NPM_REGISTRY_USERNAME" ]; then
+            echo "//${REGISTRY_AUTH_SCOPE}/:username=${NPM_REGISTRY_USERNAME}" >> ~/.npmrc
+          fi
           echo "//${REGISTRY_AUTH_SCOPE}/:always-auth=true" >> ~/.npmrc
           
           # Debug: show configured registry (without sensitive data)
