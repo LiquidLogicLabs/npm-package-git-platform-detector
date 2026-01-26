@@ -64,7 +64,7 @@ jobs:
 
       - name: Generate release notes
         id: release_notes
-        uses: mikepenz/release-changelog-builder-action@v6
+        uses: LiquidLogicLabs/git-action-release-changelog-builder@v1
         with:
           mode: "HYBRID"
           configurationJson: |
@@ -72,7 +72,7 @@ jobs:
               "template": "#{{CHANGELOG}}\n\n<details>\n<summary>Pull Requests</summary>\n\n#{{PR_LIST}}\n</details>\n\n---\n\n### Usage\n\n```yaml\n- uses: LiquidLogicLabs/npm-package-git-platfom-detector@${{ github.ref_name }}\n```"
             }
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN || secrets.GITEA_TOKEN }}
 
       - name: Create Release
         uses: LiquidLogicLabs/git-action-release@v1
