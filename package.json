@@ -23,7 +23,9 @@
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage",
     "lint": "eslint src/**/*.ts --no-warn-ignored",
-    "format": "prettier --write \"src/**/*.ts\""
+    "format": "prettier --write \"src/**/*.ts\"",
+    "test:act:release": "act push --eventpath .github/workflows/.act/event-release.json -W .github/workflows/release.yml",
+    "test:act:release:verbose": "act push --eventpath .github/workflows/.act/event-release.json -W .github/workflows/release.yml -v"
   },
   "keywords": [
     "git",

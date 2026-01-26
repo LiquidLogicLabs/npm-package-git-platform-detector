@@ -140,12 +140,14 @@ jobs:
           # Remove protocol and trailing slash for auth scope
           REGISTRY_AUTH_SCOPE=$(echo "$REGISTRY_URL" | sed -e 's#^https\\?://##' -e 's#/*$##')
           
-          # Use npm config set for proper Gitea npm registry configuration
+          # Configure .npmrc for Gitea npm registry
+          # Use npm config set for _authToken and username
           npm config set "//${REGISTRY_AUTH_SCOPE}/:_authToken" "${NPM_REGISTRY_TOKEN}"
           if [ -n "$NPM_REGISTRY_USERNAME" ]; then
             npm config set "//${REGISTRY_AUTH_SCOPE}/:username" "${NPM_REGISTRY_USERNAME}"
           fi
-          npm config set "//${REGISTRY_AUTH_SCOPE}/:always-auth" "true"
+          # always-auth must be written directly to .npmrc (not via npm config set)
+          echo "//${REGISTRY_AUTH_SCOPE}/:always-auth=true" >> ~/.npmrc
           
           # Debug: show configured registry (without sensitive data)
           echo "::debug::Publishing to registry: ${REGISTRY_URL}"

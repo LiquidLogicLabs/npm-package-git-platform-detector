@@ -1,0 +1,11 @@
+{
+  "ref": "refs/tags/v1.0.0",
+  "ref_type": "tag",
+  "pusher": {
+    "name": "test-user"
+  },
+  "repository": {
+    "name": "npm-package-git-platfom-detector",
+    "full_name": "liquidlogiclabs/npm-package-git-platfom-detector"
+  }
+}
