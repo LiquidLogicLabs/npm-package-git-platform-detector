@@ -92,14 +92,19 @@ jobs:
         run: |
           # Configure Gitea registry only for publishing (not for installing dependencies)
           REGISTRY_URL="${NPM_REGISTRY_URL%/}/"
+          # Remove protocol and trailing slash for auth scope
           REGISTRY_AUTH_SCOPE=$(echo "$REGISTRY_URL" | sed -e 's#^https\\?://##' -e 's#/*$##')
           
-          # Configure .npmrc for the custom registry
-          echo "//${REGISTRY_AUTH_SCOPE}/:_authToken=${NPM_REGISTRY_TOKEN}" >> ~/.npmrc
+          # Use npm config set for proper Gitea npm registry configuration
+          npm config set "//${REGISTRY_AUTH_SCOPE}/:_authToken" "${NPM_REGISTRY_TOKEN}"
           if [ -n "$NPM_REGISTRY_USERNAME" ]; then
-            echo "//${REGISTRY_AUTH_SCOPE}/:username=${NPM_REGISTRY_USERNAME}" >> ~/.npmrc
+            npm config set "//${REGISTRY_AUTH_SCOPE}/:username" "${NPM_REGISTRY_USERNAME}"
           fi
-          echo "//${REGISTRY_AUTH_SCOPE}/:always-auth=true" >> ~/.npmrc
+          npm config set "//${REGISTRY_AUTH_SCOPE}/:always-auth" "true"
+          
+          # Debug: show configured registry (without sensitive data)
+          echo "::debug::Publishing to registry: ${REGISTRY_URL}"
+          echo "::debug::Auth scope: //${REGISTRY_AUTH_SCOPE}/"
           
           # Publish to the custom registry
           npm publish --registry "${REGISTRY_URL}"
