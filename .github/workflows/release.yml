@@ -95,25 +95,28 @@ jobs:
           # Remove protocol and trailing slash for auth scope
           REGISTRY_AUTH_SCOPE=$(echo "$REGISTRY_URL" | sed -e 's#^https\\?://##' -e 's#/*$##')
           
-          # Configure .npmrc for Gitea npm registry
-          # For Gitea, create base64 encoded auth (username:token format)
-          if [ -n "$NPM_REGISTRY_USERNAME" ]; then
-            AUTH_STRING="${NPM_REGISTRY_USERNAME}:${NPM_REGISTRY_TOKEN}"
-          else
-            AUTH_STRING=":${NPM_REGISTRY_TOKEN}"
-          fi
-          AUTH_BASE64=$(echo -n "$AUTH_STRING" | base64 -w 0)
+          # Debug: show configured registry (without sensitive data)
+          echo "::debug::Publishing to registry: ${REGISTRY_URL}"
+          echo "::debug::Auth scope: //${REGISTRY_AUTH_SCOPE}/"
+          echo "::debug::Username: ${NPM_REGISTRY_USERNAME:-not set}"
           
-          # Write authentication to .npmrc
-          echo "//${REGISTRY_AUTH_SCOPE}/:_auth=${AUTH_BASE64}" >> ~/.npmrc
+          # Configure .npmrc for Gitea npm registry
+          # For Gitea, use _authToken format (Gitea npm registry expects token directly, not base64)
+          echo "//${REGISTRY_AUTH_SCOPE}/:_authToken=${NPM_REGISTRY_TOKEN}" >> ~/.npmrc
           if [ -n "$NPM_REGISTRY_USERNAME" ]; then
             echo "//${REGISTRY_AUTH_SCOPE}/:username=${NPM_REGISTRY_USERNAME}" >> ~/.npmrc
           fi
           echo "//${REGISTRY_AUTH_SCOPE}/:always-auth=true" >> ~/.npmrc
           
-          # Debug: show configured registry (without sensitive data)
-          echo "::debug::Publishing to registry: ${REGISTRY_URL}"
-          echo "::debug::Auth scope: //${REGISTRY_AUTH_SCOPE}/"
+          # Verify .npmrc was created (show structure without secrets)
+          echo "::debug::.npmrc configured for scope: //${REGISTRY_AUTH_SCOPE}/"
+          if [ -f ~/.npmrc ]; then
+            echo "::debug::.npmrc file exists"
+            # Show non-sensitive parts of .npmrc
+            grep -v "_auth" ~/.npmrc | grep -v "authToken" || echo "::debug::(auth lines hidden)"
+          else
+            echo "::warning::.npmrc file was not created"
+          fi
           
           # Publish to the custom registry
           npm publish --registry "${REGISTRY_URL}"
