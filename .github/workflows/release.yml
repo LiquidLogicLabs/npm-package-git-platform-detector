@@ -1,0 +1,105 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Tag to release (e.g., v1.0.0)'
+        required: true
+        type: string
+
+permissions:
+  contents: write
+  pull-requests: read
+
+jobs:
+  ci:
+    uses: ./.github/workflows/ci.yml
+    secrets: inherit
+
+  release:
+    needs: ci
+    runs-on: ubuntu-latest
+    env:
+      NPM_REGISTRY_URL: ${{ vars.NPM_REGISTRY_URL }}
+      NPM_REGISTRY_USERNAME: ${{ vars.NPM_REGISTRY_USERNAME }}
+      NPM_REGISTRY_TOKEN: ${{ secrets.NPM_REGISTRY_TOKEN }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.inputs.tag || github.ref }}
+
+      - name: Parse and validate version tag
+        id: version
+        uses: LiquidLogicLabs/git-tag-validate-version-action@v1
+        with:
+          tag: ${{ github.event.inputs.tag || github.ref_name }}
+          versionType: 'auto'
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build and package
+        run: npm run package
+
+      - name: Create npm tarball
+        id: pack
+        run: |
+          PACK_FILE=$(npm pack --silent)
+          echo "tgz=${PACK_FILE}" >> "$GITHUB_OUTPUT"
+
+      - name: Create dist zip
+        run: zip -r dist.zip dist
+
+      - name: Generate release notes
+        id: release_notes
+        uses: mikepenz/release-changelog-builder-action@v6
+        with:
+          mode: "HYBRID"
+          configurationJson: |
+            {
+              "template": "#{{CHANGELOG}}\n\n<details>\n<summary>Pull Requests</summary>\n\n#{{PR_LIST}}\n</details>\n\n---\n\n### Usage\n\n```yaml\n- uses: LiquidLogicLabs/npm-package-git-platfom-detector@${{ github.ref_name }}\n```"
+            }
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Create Release
+        uses: LiquidLogicLabs/git-action-release@v1
+        with:
+          tag: ${{ github.event.inputs.tag || github.ref_name }}
+          name: Release ${{ steps.version.outputs.version }}
+          body: ${{ steps.release_notes.outputs.changelog }}
+          draft: false
+          prerelease: ${{ steps.version.outputs.hasPrerelease == 'true' }}
+          artifacts: ${{ steps.pack.outputs.tgz }},dist.zip
+          replacesArtifacts: true
+          token: ${{ secrets.GITHUB_TOKEN || secrets.GITEA_TOKEN }}
+
+      - name: Publish package to registry
+        if: env.NPM_REGISTRY_URL != '' && env.NPM_REGISTRY_USERNAME != '' && env.NPM_REGISTRY_TOKEN != ''
+        run: |
+          REGISTRY_URL="${NPM_REGISTRY_URL%/}/"
+          REGISTRY_HOST=$(echo "$REGISTRY_URL" | sed -e 's#^https\\?://##' -e 's#/*$##')
+          echo "registry=${REGISTRY_URL}" >> ~/.npmrc
+          echo "//${REGISTRY_HOST}/:username=${NPM_REGISTRY_USERNAME}" >> ~/.npmrc
+          echo "//${REGISTRY_HOST}/:_authToken=${NPM_REGISTRY_TOKEN}" >> ~/.npmrc
+          echo "//${REGISTRY_HOST}/:always-auth=true" >> ~/.npmrc
+          npm publish --registry "${REGISTRY_URL}"
+
+      - name: Release Summary
+        run: |
+          echo "## Release Complete" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- **Version**: ${{ steps.version.outputs.version }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Tag**: ${{ github.event.inputs.tag || github.ref_name }}" >> $GITHUB_STEP_SUMMARY
