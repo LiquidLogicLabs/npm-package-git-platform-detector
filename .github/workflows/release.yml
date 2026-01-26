@@ -90,11 +90,16 @@ jobs:
         if: env.NPM_REGISTRY_URL != '' && env.NPM_REGISTRY_USERNAME != '' && env.NPM_REGISTRY_TOKEN != ''
         run: |
           REGISTRY_URL="${NPM_REGISTRY_URL%/}/"
-          REGISTRY_HOST=$(echo "$REGISTRY_URL" | sed -e 's#^https\\?://##' -e 's#/*$##')
+          # Extract host and path for Gitea npm registry format (remove protocol and trailing slash)
+          REGISTRY_AUTH_SCOPE=$(echo "$REGISTRY_URL" | sed -e 's#^https\\?://##' -e 's#/*$##')
           echo "registry=${REGISTRY_URL}" >> ~/.npmrc
-          echo "//${REGISTRY_HOST}/:username=${NPM_REGISTRY_USERNAME}" >> ~/.npmrc
-          echo "//${REGISTRY_HOST}/:_authToken=${NPM_REGISTRY_TOKEN}" >> ~/.npmrc
-          echo "//${REGISTRY_HOST}/:always-auth=true" >> ~/.npmrc
+          echo "//${REGISTRY_AUTH_SCOPE}/:username=${NPM_REGISTRY_USERNAME}" >> ~/.npmrc
+          # For Gitea, use _authToken with the token directly (not base64 encoded)
+          echo "//${REGISTRY_AUTH_SCOPE}/:_authToken=${NPM_REGISTRY_TOKEN}" >> ~/.npmrc
+          echo "//${REGISTRY_AUTH_SCOPE}/:always-auth=true" >> ~/.npmrc
+          # Debug: show npmrc (without sensitive data)
+          echo "::debug::Configured npm registry: ${REGISTRY_URL}"
+          echo "::debug::Auth scope: //${REGISTRY_AUTH_SCOPE}/"
           npm publish --registry "${REGISTRY_URL}"
 
       - name: Release Summary
