@@ -46,9 +46,7 @@ jobs:
         with:
           node-version: '20'
           cache: 'npm'
-          registry-url: ${{ vars.NPM_REGISTRY_URL != '' && vars.NPM_REGISTRY_URL || 'https://registry.npmjs.org' }}
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_REGISTRY_TOKEN != '' && secrets.NPM_REGISTRY_TOKEN || secrets.NPM_TOKEN || '' }}
+          # Use default npm registry (npmjs.org) for installing dependencies
 
       - name: Install dependencies
         run: npm ci
@@ -91,7 +89,20 @@ jobs:
 
       - name: Publish package to registry
         if: env.NPM_REGISTRY_URL != '' && env.NPM_REGISTRY_TOKEN != ''
-        run: npm publish
+        run: |
+          # Configure Gitea registry only for publishing (not for installing dependencies)
+          REGISTRY_URL="${NPM_REGISTRY_URL%/}/"
+          REGISTRY_AUTH_SCOPE=$(echo "$REGISTRY_URL" | sed -e 's#^https\\?://##' -e 's#/*$##')
+          
+          # Configure .npmrc for the custom registry
+          echo "//${REGISTRY_AUTH_SCOPE}/:_authToken=${NPM_REGISTRY_TOKEN}" >> ~/.npmrc
+          if [ -n "$NPM_REGISTRY_USERNAME" ]; then
+            echo "//${REGISTRY_AUTH_SCOPE}/:username=${NPM_REGISTRY_USERNAME}" >> ~/.npmrc
+          fi
+          echo "//${REGISTRY_AUTH_SCOPE}/:always-auth=true" >> ~/.npmrc
+          
+          # Publish to the custom registry
+          npm publish --registry "${REGISTRY_URL}"
 
       - name: Release Summary
         run: |
