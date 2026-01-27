@@ -20,6 +20,24 @@ describe('factory', () => {
     expect(() => createByName('missing', { providers: [mockProvider] })).toThrow('Unsupported provider');
   });
 
+  it('createByName supports generic provider aliases (git, local, generic)', () => {
+    const genericProvider: Provider = {
+      id: 'generic',
+      displayName: 'Generic',
+      isUrlMatch: () => false,
+      probeApi: async () => ({ matched: false }),
+      determineBaseUrl: () => undefined
+    };
+
+    // All aliases should map to generic
+    expect(createByName('generic', { providers: [genericProvider] }).provider.id).toBe('generic');
+    expect(createByName('git', { providers: [genericProvider] }).provider.id).toBe('generic');
+    expect(createByName('local', { providers: [genericProvider] }).provider.id).toBe('generic');
+    expect(createByName('GENERIC', { providers: [genericProvider] }).provider.id).toBe('generic');
+    expect(createByName('GIT', { providers: [genericProvider] }).provider.id).toBe('generic');
+    expect(createByName('LOCAL', { providers: [genericProvider] }).provider.id).toBe('generic');
+  });
+
   it('createByUrl prefers hostname match', async () => {
     const hostProvider: Provider = {
       ...mockProvider,

@@ -93,6 +93,13 @@ Returns a `DetectionResult`:
 
 Validates and returns a provider by name. No hostname matching or probing is performed.
 
+**Provider Aliases**: The following aliases are supported for the generic provider:
+- `generic` (canonical name)
+- `git` (alias for generic - local Git CLI operations)
+- `local` (alias for generic - local Git CLI operations)
+
+All aliases are case-insensitive and map to the `generic` provider.
+
 ### `createByUrl(url, options)`
 
 Runs hostname matching first, then API probing. Returns a provider match or falls back to generic.
