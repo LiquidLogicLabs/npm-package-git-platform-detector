@@ -78,7 +78,7 @@ jobs:
           PREV_TAG="$(git tag --list 'v*.*.*' --sort=-version:refname | grep -v "^${CURRENT_TAG}$" | head -n 1 || true)"
 
           {
-            echo "changelog<<'EOF'"
+            echo "changelog<<EOF"
             echo "## ${CURRENT_TAG}"
             echo ""
 
