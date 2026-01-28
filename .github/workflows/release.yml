@@ -76,6 +76,14 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN || secrets.GITEA_TOKEN }}
 
+      - name: Create/Update Major, Minor, and Latest Version Tags
+        if: steps.version.outputs.hasPrerelease != 'true' && steps.version.outputs.isValid == 'true'
+        uses: LiquidLogicLabs/git-floating-version-tags-action@v1
+        with:
+          tag: ${{ github.event.inputs.tag || github.ref_name }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN || secrets.GITEA_TOKEN }}
+
       - name: Create Release
         uses: LiquidLogicLabs/git-action-release@v1
         with:

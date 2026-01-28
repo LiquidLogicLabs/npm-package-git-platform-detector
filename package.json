@@ -24,6 +24,8 @@
     "test:coverage": "jest --coverage",
     "lint": "eslint src/**/*.ts --no-warn-ignored",
     "format": "prettier --write \"src/**/*.ts\"",
+    "test:act": "act workflow_dispatch -W .github/workflows/test.yml --eventpath .github/workflows/.act/event-workflow_call.json",
+    "test:act:verbose": "act workflow_dispatch -W .github/workflows/test.yml --eventpath .github/workflows/.act/event-workflow_call.json -v",
     "test:act:release": "act push --eventpath .github/workflows/.act/event-release.json -W .github/workflows/release.yml",
     "test:act:release:verbose": "act push --eventpath .github/workflows/.act/event-release.json -W .github/workflows/release.yml -v"
   },
