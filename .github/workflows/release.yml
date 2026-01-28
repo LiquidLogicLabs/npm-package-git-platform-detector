@@ -66,15 +66,40 @@ jobs:
 
       - name: Generate release notes
         id: release_notes
-        uses: LiquidLogicLabs/git-action-release-changelog-builder@v2
-        with:
-          mode: "HYBRID"
-          configurationJson: |
-            {
-              "template": "#{{CHANGELOG}}\n\n<details>\n<summary>Pull Requests</summary>\n\n#{{PR_LIST}}\n</details>\n\n---\n\n### Usage\n\n```yaml\n- uses: LiquidLogicLabs/npm-package-git-platfom-detector@${{ github.ref_name }}\n```"
-            }
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN || secrets.GITEA_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          CURRENT_TAG="${{ github.event.inputs.tag || github.ref_name }}"
+
+          # Pick the previous semver tag (best-effort). This avoids depending on
+          # external changelog-builder actions, which may not be compatible with
+          # all runners/forges.
+          PREV_TAG="$(git tag --list 'v*.*.*' --sort=-version:refname | grep -v "^${CURRENT_TAG}$" | head -n 1 || true)"
+
+          {
+            echo "changelog<<'EOF'"
+            echo "## ${CURRENT_TAG}"
+            echo ""
+
+            if [ -n "${PREV_TAG}" ]; then
+              echo "Changes since ${PREV_TAG}:"
+              git log --pretty=format:'- %s (%h)' "${PREV_TAG}..HEAD"
+            else
+              echo "Changes:"
+              git log -1 --pretty=format:'- %s (%h)'
+            fi
+
+            echo ""
+            echo "---"
+            echo ""
+            echo "### Usage"
+            echo ""
+            echo '```yaml'
+            echo "- uses: LiquidLogicLabs/npm-package-git-platfom-detector@${CURRENT_TAG}"
+            echo '```'
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
 
       - name: Create/Update Major, Minor, and Latest Version Tags
         if: steps.version.outputs.hasPrerelease != 'true' && steps.version.outputs.isValid == 'true'
