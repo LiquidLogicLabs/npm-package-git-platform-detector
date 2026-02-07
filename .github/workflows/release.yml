@@ -15,6 +15,10 @@ permissions:
   contents: write
   pull-requests: read
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.inputs.tag || github.ref }}
+  cancel-in-progress: false
+
 jobs:
   ci:
     uses: ./.github/workflows/ci.yml
