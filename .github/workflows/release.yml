@@ -44,7 +44,7 @@ jobs:
         uses: LiquidLogicLabs/git-tag-validate-version-action@v1
         with:
           tag: ${{ github.event.inputs.tag || github.ref_name }}
-          versionType: 'auto'
+          version-type: 'auto'
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -106,7 +106,7 @@ jobs:
           } >> "$GITHUB_OUTPUT"
 
       - name: Create/Update Major, Minor, and Latest Version Tags
-        if: steps.version.outputs.hasPrerelease != 'true' && steps.version.outputs.isValid == 'true'
+        if: steps.version.outputs.has-prerelease != 'true' && steps.version.outputs.is-valid == 'true'
         uses: LiquidLogicLabs/git-floating-version-tags-action@v1
         with:
           tag: ${{ github.event.inputs.tag || github.ref_name }}
@@ -120,9 +120,9 @@ jobs:
           name: Release ${{ steps.version.outputs.version }}
           body: ${{ steps.release_notes.outputs.changelog }}
           draft: false
-          prerelease: ${{ steps.version.outputs.hasPrerelease == 'true' }}
+          prerelease: ${{ steps.version.outputs.has-prerelease == 'true' }}
           artifacts: ${{ steps.pack.outputs.tgz }},dist.zip
-          replacesArtifacts: true
+          replaces-artifacts: true
           token: ${{ secrets.GITHUB_TOKEN || secrets.GITEA_TOKEN }}
 
       - name: Publish package to registry
