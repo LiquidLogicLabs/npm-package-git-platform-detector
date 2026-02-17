@@ -13,6 +13,10 @@ on:
   workflow_call:
   workflow_dispatch:
 
+concurrency:
+  group: ${{ github.workflow || 'CI' }}-${{ github.event_name }}-${{ github.event.pull_request.number || github.ref || github.sha }}
+  cancel-in-progress: true
+
 permissions:
   contents: read
   pull-requests: read
