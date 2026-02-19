@@ -27,3 +27,6 @@ coverage/
 
 # Act secrets (local testing)
 .github/workflows/.act/.secrets
+
+# Devcontainer secrets — copy of .devcontainer/.devcontainer-secrets.sample with real values
+.devcontainer-secrets
