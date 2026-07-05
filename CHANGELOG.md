@@ -1,3 +1,4 @@
+## [1.1.6](https://git.ravenwolf.org/liquidlogiclabs/npm-package-git-platfom-detector/compare/v1.1.5...v1.1.6) (2026-07-05)
 # Changelog
 
 All notable changes to the `git-platform-detector` package will be documented in this file.
