@@ -1,3 +1,10 @@
 #!/bin/sh
+# Library uses gitignored dist/ (built at publish, not tracked in git).
+# Pre-commit hook only lints; dist rebuild happens via `npm publish` prepare hook.
+set -e
 
-npm run lint
+changed_files=$(git diff --cached --name-only --diff-filter=ACMR)
+if echo "$changed_files" | grep -E '^(src/|package(-lock)?\.json|tsconfig.*\.json)' >/dev/null; then
+  echo "Detected source/config changes; running lint..."
+  npm run lint
+fi
