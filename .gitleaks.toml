@@ -1,0 +1,9 @@
+[extend]
+useDefault = true
+
+# Suppresses ONLY the JSDoc example string ncc inlines into the bundle.
+# condition = "AND" means a real secret in dist/index.js is still reported.
+[[allowlists]]
+condition = "AND"
+paths = ['''^dist/index\.js(\.map)?$''']
+regexes = ['''abc123xyz456''']
