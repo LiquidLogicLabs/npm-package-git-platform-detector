@@ -111,6 +111,10 @@ jobs:
         uses: LiquidLogicLabs/git-floating-version-tags-action@v2
         with:
           tag: ${{ github.event.inputs.tag || github.ref_name }}
+          # Without this the minor tag (vX.Y) is never moved: the action defaults it to
+          # false, so every repo left vX.Y frozen at an old release while the summary
+          # below claimed it had been created.
+          update-minor: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN || secrets.GITEA_TOKEN }}
 
