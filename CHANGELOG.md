@@ -1,3 +1,9 @@
+## [1.1.7](https://git.ravenwolf.org/liquidlogiclabs/npm-package-git-platfom-detector/compare/v1.1.6...v1.1.7) (2026-09-04)
+
+
+### Bug Fixes
+
+* **lint:** quote eslint glob, add lint:fix/test:unit, drop stray .eslintrc.json ([1687ca3](https://git.ravenwolf.org/liquidlogiclabs/npm-package-git-platfom-detector/commits/1687ca3c38b24644892b0d167040484d7e5df977))
 ## [1.1.6](https://git.ravenwolf.org/liquidlogiclabs/npm-package-git-platfom-detector/compare/v1.1.5...v1.1.6) (2026-07-05)
 # Changelog
 
