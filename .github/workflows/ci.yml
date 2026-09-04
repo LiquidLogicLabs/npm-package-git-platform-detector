@@ -29,15 +29,20 @@ jobs:
       pull-requests: read
     steps:
       - name: Checkout code
-        uses: actions/checkout@v6
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
+          # No step in this job pushes; the credential is not needed.
+          persist-credentials: false
           fetch-depth: 0
 
       - name: Setup Node.js
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
           node-version: '24'
-          cache: 'npm'
+          # setup-node enables package-manager caching by default; a cache
+          # restored from a PR run must not reach a publishing job. Removing
+          # `cache: 'npm'` alone is NOT enough -- the default still caches.
+          package-manager-cache: false
 
       - name: Install dependencies
         run: npm ci
@@ -71,14 +76,61 @@ jobs:
           fi
           echo "No duplicate forge workflow directories."
       - name: Lint workflows
-        # Scoped to ci.yml in Phase 0; Phase 1 fixes release.yml shellcheck
-        # findings and removes the scoping. Gitea Actions does not resolve
-        # docker:///Marketplace uses: forms, so this repo uses a pinned CLI
-        # download instead of the docker://rhysd/actionlint form.
+        # Gitea Actions does not resolve docker:///Marketplace uses: forms, so this repo
+        # uses a pinned CLI download instead of the docker://rhysd/actionlint form the
+        # GitHub-hosted repos use.
         run: |
           curl -sSfL https://raw.githubusercontent.com/rhysd/actionlint/main/scripts/download-actionlint.bash \
             | bash -s -- latest "${RUNNER_TEMP:-/tmp}"
-          "${RUNNER_TEMP:-/tmp}/actionlint" -color .github/workflows/ci.yml
+          # No path: actionlint discovers every workflow itself. Passing a directory makes
+          # it fail with "is a directory" and exit 0, having linted nothing -- and passing
+          # one file, as this did, left release.yml and test.yml unchecked, which is where
+          # nearly all the shell actually lives.
+          "${RUNNER_TEMP:-/tmp}/actionlint" -color
+
+      - name: Audit workflows for injection and supply-chain issues
+        # Same reason as the actionlint step above: the GitHub-hosted repos in this set run
+        # `docker run ghcr.io/zizmorcore/zizmor:1.30.0`, which this runner cannot be relied
+        # on to provide. Same tool, same version, pinned by release tag.
+        #
+        # --offline is explicit rather than relied upon. zizmor is offline by DEFAULT only
+        # while no GH_TOKEN/GITHUB_TOKEN sits in the environment; if one ever appears it
+        # would start reaching the network mid-audit and a transient 401 or outage would
+        # fail this gate for a reason unrelated to the workflows. Verified locally that
+        # --offline and the default produce identical findings here.
+        run: |
+          curl -sSfL "https://github.com/zizmorcore/zizmor/releases/download/v1.30.0/zizmor-x86_64-unknown-linux-gnu.tar.gz" \
+            | tar -xz -C "${RUNNER_TEMP:-/tmp}" zizmor
+          "${RUNNER_TEMP:-/tmp}/zizmor" --version
+          "${RUNNER_TEMP:-/tmp}/zizmor" --offline --no-progress --persona=regular .
+
+      - name: Reject a suppressed template-injection finding
+        run: |
+          # template-injection is the remote-code-execution class this gate exists for. It
+          # may never be suppressed -- neither inline nor through a config file that a
+          # reviewer scanning workflow diffs would not see.
+          #
+          # The set of files to search is DERIVED from what git tracks, not hand-listed.
+          # The GitHub-hosted repos in this set can write `.github action.yml` because both
+          # exist there; this repo is a library and has no action.yml, and a hand-kept list
+          # would silently stop covering a file the moment one was added.
+          targets=$(git ls-files -- '.github/*' 'action.yml' 'action.yaml')
+          if [ -z "$targets" ]; then
+            echo "::error::no workflow or action files found to check -- the scope is wrong"
+            exit 1
+          fi
+          # shellcheck disable=SC2086
+          if grep -n 'zizmor: ignore\[template-injection\]' $targets; then
+            echo "::error::template-injection may not be suppressed; fix it or report blocked"
+            exit 1
+          fi
+          for cfg in .github/zizmor.yml .github/zizmor.yaml zizmor.yml .zizmor.yml; do
+            if [ -e "$cfg" ]; then
+              echo "::error::$cfg would let findings be silenced outside the workflow diff"
+              exit 1
+            fi
+          done
+          echo "No suppressed template-injection findings and no zizmor config."
 
       - name: Scan for secrets
         # Pinned CLI download (not gitleaks-action): Gitea Actions does not
@@ -100,5 +152,11 @@ jobs:
 
   test:
     needs: lint
-    uses: ./.github/workflows/test.yml
-    secrets: inherit
+    # `$/` is GitHub syntax from July 2026 and act 0.2.89 rejects it outright ("must start
+    # with './' if it's a local workflow"), which would break every act-based script here.
+    # The marker must sit ON the uses: line -- a comment above a JOB-level uses: is not
+    # honoured, unlike the step-level case.
+    uses: ./.github/workflows/test.yml  # zizmor: ignore[self-repository]
+    # No `secrets:` block: neither ci.yml nor test.yml reads a single secret --
+    # `grep -ohE 'secrets\.[A-Za-z0-9_]+'` over both returns nothing. Every secret this
+    # repository uses is read in release.yml's own release job.

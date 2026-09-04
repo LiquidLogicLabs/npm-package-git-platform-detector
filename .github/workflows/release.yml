@@ -11,8 +11,10 @@ on:
         required: true
         type: string
 
+# Floor for every job in this file. Deleting this block would NOT narrow anything -- jobs
+# would fall back to the repository default, which may be write-all.
 permissions:
-  contents: write
+  contents: read
   pull-requests: read
 
 concurrency:
@@ -22,37 +24,66 @@ concurrency:
 
 jobs:
   ci:
-    uses: ./.github/workflows/ci.yml
-    secrets: inherit
+    # `$/` is GitHub syntax from July 2026 and act 0.2.89 rejects it outright ("must start
+    # with './' if it's a local workflow"), which would break every act-based script here.
+    # The marker must sit ON the uses: line -- a comment above a JOB-level uses: is not
+    # honoured, unlike the step-level case.
+    uses: ./.github/workflows/ci.yml  # zizmor: ignore[self-repository]
+    # No `secrets:` block: neither ci.yml nor the test.yml it calls reads a single secret.
+    # Every secret this repository uses is read in the release job below.
 
   release:
+    permissions:
+      contents: write   # creates the release and moves the floating tags
     needs: ci
     runs-on: ubuntu-latest
     env:
-      # Support both vars (GitHub/Gitea Actions) and env vars (act testing)
-      NPM_REGISTRY_URL: ${{ vars.NPM_REGISTRY_URL || env.NPM_REGISTRY_URL }}
-      NPM_REGISTRY_USERNAME: ${{ vars.NPM_REGISTRY_USERNAME || env.NPM_REGISTRY_USERNAME }}
+      # The `|| env.X` halves that used to be here were invalid: the `env` context is not
+      # available inside a job-level `env:` block at all (actionlint: 'context "env" is
+      # not allowed here'). They were only never noticed because actionlint was pinned to
+      # ci.yml. They were also dead -- the comment claimed they supported act testing, but
+      # neither .act.vars nor .act.env defines either name, and a job-level `env.X` could
+      # only have referred to a workflow-level `env:` block this file does not have.
+      NPM_REGISTRY_URL: ${{ vars.NPM_REGISTRY_URL }}
+      NPM_REGISTRY_USERNAME: ${{ vars.NPM_REGISTRY_USERNAME }}
       NPM_REGISTRY_TOKEN: ${{ secrets.NPM_REGISTRY_TOKEN }}
     steps:
       - name: Checkout code
-        uses: actions/checkout@v6
+        # zizmor: ignore[artipacked] — the floating-tags step later in this job
+        # force-pushes vX/vX.Y using these persisted credentials; disabling them
+        # breaks the release, and only at release time.
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
           fetch-depth: 0
           ref: ${{ github.event.inputs.tag || github.ref }}
 
       - name: Parse and validate version tag
         id: version
-        uses: LiquidLogicLabs/git-tag-validate-version-action@v2
+        # zizmor: ignore[unpinned-uses] — first-party action; no Renovate or
+        # Dependabot exists in these repos, so a SHA pin would freeze it and stop
+        # security fixes reaching us through @v2.
+        #
+        # Repository renamed: git-tag-validate-version-action now redirects to
+        # git-action-tag-validate-version. GitHub serves the redirect today, but a
+        # redirect is not a guarantee -- the old name can be re-registered by anyone
+        # once it is freed, which turns this line into a third-party action.
+        uses: LiquidLogicLabs/git-action-tag-validate-version@v2
         with:
           tag: ${{ github.event.inputs.tag || github.ref_name }}
           version-type: 'auto'
 
       - name: Setup Node.js
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
           node-version: '24'
-          cache: 'npm'
-          # Use default npm registry (npmjs.org) for installing dependencies
+          # setup-node enables package-manager caching by default; a cache
+          # restored from a PR run must not reach a publishing job. Removing
+          # `cache: 'npm'` alone is NOT enough -- the default still caches.
+          package-manager-cache: false
+          # No registry-url is needed here, unlike the action repos in this set: nothing in
+          # package.json resolves to git.ravenwolf.org (`grep ravenwolf package.json` finds
+          # only repository/homepage URLs), so `npm ci` installs entirely from npmjs and
+          # cannot have been depending on cache warmth for authentication.
 
       - name: Install dependencies
         run: npm ci
@@ -72,10 +103,12 @@ jobs:
       - name: Generate release notes
         id: release_notes
         shell: bash
+        env:
+          Z_EVENT_INPUTS_TAG_GITHUB_REF_NAME: ${{ github.event.inputs.tag || github.ref_name }}
         run: |
           set -euo pipefail
 
-          CURRENT_TAG="${{ github.event.inputs.tag || github.ref_name }}"
+          CURRENT_TAG="${Z_EVENT_INPUTS_TAG_GITHUB_REF_NAME}"
 
           # Pick the previous semver tag (best-effort). This avoids depending on
           # external changelog-builder actions, which may not be compatible with
@@ -108,6 +141,9 @@ jobs:
 
       - name: Create/Update Major and Minor Version Tags
         if: steps.version.outputs.has-prerelease != 'true' && steps.version.outputs.is-valid == 'true'
+        # zizmor: ignore[unpinned-uses] — first-party action; no Renovate or
+        # Dependabot exists in these repos, so a SHA pin would freeze it and stop
+        # security fixes reaching us through @v2.
         uses: LiquidLogicLabs/git-action-tag-floating-version@v2
         with:
           tag: ${{ github.event.inputs.tag || github.ref_name }}
@@ -119,6 +155,9 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN || secrets.GITEA_TOKEN }}
 
       - name: Create Release
+        # zizmor: ignore[unpinned-uses] — first-party action; no Renovate or
+        # Dependabot exists in these repos, so a SHA pin would freeze it and stop
+        # security fixes reaching us through @v2.
         uses: LiquidLogicLabs/git-action-release@v2
         with:
           tag: ${{ github.event.inputs.tag || github.ref_name }}
@@ -132,15 +171,20 @@ jobs:
 
       - name: Publish package to registry
         if: env.NPM_REGISTRY_URL != '' && env.NPM_REGISTRY_TOKEN != ''
-        uses: JS-DevTools/npm-publish@v4
+        uses: JS-DevTools/npm-publish@0fd2f4369c5d6bcfcde6091a7c527d810b9b5c3f # v4
         with:
           token: ${{ secrets.NPM_REGISTRY_TOKEN }}
           registry: ${{ vars.NPM_REGISTRY_URL || env.NPM_REGISTRY_URL }}
           ignore-scripts: true
 
       - name: Release Summary
+        env:
+          Z_VERSION_OUTPUTS_VERSION: ${{ steps.version.outputs.version }}
+          Z_EVENT_INPUTS_TAG_GITHUB_REF_NAME: ${{ github.event.inputs.tag || github.ref_name }}
         run: |
-          echo "## Release Complete" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "- **Version**: ${{ steps.version.outputs.version }}" >> $GITHUB_STEP_SUMMARY
-          echo "- **Tag**: ${{ github.event.inputs.tag || github.ref_name }}" >> $GITHUB_STEP_SUMMARY
+          {
+            echo "## Release Complete"
+            echo ""
+            echo "- **Version**: ${Z_VERSION_OUTPUTS_VERSION}"
+            echo "- **Tag**: ${Z_EVENT_INPUTS_TAG_GITHUB_REF_NAME}"
+          } >> "$GITHUB_STEP_SUMMARY"
