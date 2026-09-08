@@ -1,6 +1,7 @@
  # Git Platform Detector
 
-[![CI](https://git.ravenwolf.org/liquidlogiclabs/npm-package-git-platfom-detector/actions/workflows/ci.yml/badge.svg)](https://git.ravenwolf.org/liquidlogiclabs/npm-package-git-platfom-detector/actions/workflows/ci.yml)
+[![CI](https://github.com/LiquidLogicLabs/npm-package-git-platform-detector/actions/workflows/ci.yml/badge.svg)](https://github.com/LiquidLogicLabs/npm-package-git-platform-detector/actions/workflows/ci.yml)
+[![npm](https://img.shields.io/npm/v/@liquidlogiclabs/git-platform-detector.svg)](https://www.npmjs.com/package/@liquidlogiclabs/git-platform-detector)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.9-blue.svg)](https://www.typescriptlang.org/)
 
@@ -31,22 +32,18 @@ flowchart TD
 ## Installation
 
 ```bash
-npm install git-platform-detector
+npm install @liquidlogiclabs/git-platform-detector
 ```
 
-For local development inside this repo:
-
-```bash
-npm install ../npm-package-git-platfom-detector
-```
+The package is published publicly to npmjs and installs with no authentication.
 
 ## Basic usage
 
 ```ts
-import { detectPlatform } from 'git-platform-detector';
+import { detectPlatform } from '@liquidlogiclabs/git-platform-detector';
 
 const result = await detectPlatform({
-  repositoryUrl: 'https://git.ravenwolf.org/org/repo',
+  repositoryUrl: 'https://gitea.example.com/org/repo',
   credentials: { token: process.env.GITEA_TOKEN }
 });
 
@@ -57,18 +54,18 @@ console.log(result.baseUrl);
 ## Explicit provider
 
 ```ts
-import { detectPlatform } from 'git-platform-detector';
+import { detectPlatform } from '@liquidlogiclabs/git-platform-detector';
 
 const result = await detectPlatform({
   requestedProvider: 'gitea',
-  repositoryUrl: 'https://git.ravenwolf.org/org/repo'
+  repositoryUrl: 'https://gitea.example.com/org/repo'
 });
 ```
 
 ## Factory usage
 
 ```ts
-import { createByName, createByUrl } from 'git-platform-detector';
+import { createByName, createByUrl } from '@liquidlogiclabs/git-platform-detector';
 
 const explicit = createByName('github');
 
