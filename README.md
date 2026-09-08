@@ -105,6 +105,78 @@ Runs hostname matching first, then API probing. Returns a provider match or fall
 
 Collects URLs from explicit inputs and environment variables.
 
+### `getBuiltInProviders()`
+
+Returns every built-in `Provider` — GitHub, Gitea, Bitbucket and the generic
+fallback. Useful for inspecting what will be matched against, or for building a
+custom provider list.
+
+```ts
+import { getBuiltInProviders } from '@liquidlogiclabs/git-platform-detector';
+
+console.log(getBuiltInProviders().map(p => p.id));
+// ['gitea', 'github', 'bitbucket', 'generic']
+```
+
+### `getProviderById(id, providers?)`
+
+Looks up a single provider by id, returning `undefined` if there is no match.
+Pass `providers` to search a custom list instead of the built-ins.
+
+## URL helpers
+
+### `toUrl(input)`
+
+Parses a string into a `URL`, returning `undefined` rather than throwing when the
+input is not a valid URL. Use it when handling untrusted or optional input.
+
+### `parseOwnerRepo(url)`
+
+Extracts `{ owner?, repo? }` from a repository URL. Both fields are optional —
+a URL that does not contain them yields an empty object rather than an error.
+
+```ts
+import { toUrl, parseOwnerRepo } from '@liquidlogiclabs/git-platform-detector';
+
+const url = toUrl('https://github.com/octocat/Hello-World.git');
+if (url) console.log(parseOwnerRepo(url)); // { owner: 'octocat', repo: 'Hello-World' }
+```
+
+### `isGiteaActionsEnvironment(env?)`
+
+Returns `true` when the current environment looks like Gitea Actions rather than
+GitHub Actions. Defaults to `process.env`; pass an object to test explicitly.
+
+Detection is by environment shape, not by hostname — a `GITHUB_SERVER_URL` that
+does not point at github.com indicates Gitea running in GitHub-compatibility
+mode.
+
+## Logging
+
+The library never logs credentials. Supply a `Logger` to see detection steps:
+
+```ts
+import { detectPlatform, ConsoleLogger } from '@liquidlogiclabs/git-platform-detector';
+
+await detectPlatform({
+  repositoryUrl: 'https://gitea.example.com/org/repo',
+  logger: new ConsoleLogger()
+});
+```
+
+`ConsoleLogger` writes to the console; `NoopLogger` discards everything and is
+the default. A `Logger` is any object with `info`, `warn` and `debug` methods
+taking a single string, so your own logger can be passed directly.
+
+## TypeScript
+
+Types ship with the package. In addition to the functions above, these types are
+exported for annotating your own code:
+
+`BuiltInProviderId`, `ProviderId`, `CredentialSet`, `ProbeContext`,
+`ProbeResult`, `DetectionEvidence`, `DetectionResult`, `Logger`, `Provider`,
+`FactoryOptions`.
+
 ## Supported providers
 
 - GitHub
@@ -121,7 +193,7 @@ Collects URLs from explicit inputs and environment variables.
 Example provider structure:
 
 ```ts
-import { Provider } from '../types';
+import type { Provider } from '@liquidlogiclabs/git-platform-detector';
 
 export const myProvider: Provider = {
   id: 'my-platform',
@@ -138,15 +210,22 @@ export const myProvider: Provider = {
 - Use environment variables or secrets for tokens in CI.
 - Avoid logging tokens; the library never logs credentials.
 
-## Publishing (CI)
+## Requirements
 
-The release workflow supports publishing to any npm-compatible registry when these variables are set:
+Node.js 20 or later (`engines: node >=20`). Ships CommonJS with TypeScript
+declarations.
 
-- `NPM_REGISTRY_URL`
-- `NPM_REGISTRY_USERNAME`
-- `NPM_REGISTRY_TOKEN`
+## Contributing
 
-Point the URL to your Gitea package registry or the public npm registry.
+Source lives at
+[LiquidLogicLabs/npm-package-git-platform-detector](https://github.com/LiquidLogicLabs/npm-package-git-platform-detector).
+Issues and pull requests are welcome there.
+
+```bash
+npm install
+npm run build
+npm test
+```
 
 ## License
 
