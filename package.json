@@ -1,6 +1,6 @@
 {
   "name": "@liquidlogiclabs/git-platform-detector",
-  "version": "1.1.8",
+  "version": "1.1.9",
   "description": "Platform detection library for GitHub, Gitea, Bitbucket, and generic git hosts",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",

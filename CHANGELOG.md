@@ -1,3 +1,4 @@
+## [1.1.9](https://github.com/LiquidLogicLabs/npm-package-git-platform-detector/compare/v1.1.8...v1.1.9) (2026-09-08)
 ## [1.1.8](https://git.ravenwolf.org/liquidlogiclabs/npm-package-git-platfom-detector/compare/v1.1.7...v1.1.8) (2026-09-04)
 ## [1.1.7](https://git.ravenwolf.org/liquidlogiclabs/npm-package-git-platfom-detector/compare/v1.1.6...v1.1.7) (2026-09-04)
 
