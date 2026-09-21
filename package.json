@@ -35,11 +35,11 @@
     "release:patch": "npm version patch -m \"chore(release): %s\"",
     "release:minor": "npm version minor -m \"chore(release): %s\"",
     "release:major": "npm version major -m \"chore(release): %s\"",
-    "test:act": "act --container-options \"--user $(id -u):$(id -g)\" --env-file .act.env --var-file .act.vars --secret-file .act.secrets workflow_dispatch -W .github/workflows/test.yml --eventpath .github/workflows/.act/event-workflow_call.json",
-    "test:act:verbose": "act --container-options \"--user $(id -u):$(id -g)\" --env-file .act.env --var-file .act.vars --secret-file .act.secrets workflow_dispatch -W .github/workflows/test.yml --eventpath .github/workflows/.act/event-workflow_call.json -v",
-    "test:act:ci": "act --container-options \"--user $(id -u):$(id -g)\" --env-file .act.env --var-file .act.vars --secret-file .act.secrets -W .github/workflows/ci.yml",
-    "test:act:release": "act --container-options \"--user $(id -u):$(id -g)\" --env-file .act.env --var-file .act.vars --secret-file .act.secrets push --eventpath .github/workflows/.act/event-release.json -W .github/workflows/release.yml",
-    "test:act:release:verbose": "act --container-options \"--user $(id -u):$(id -g)\" --env-file .act.env --var-file .act.vars --secret-file .act.secrets push --eventpath .github/workflows/.act/event-release.json -W .github/workflows/release.yml -v"
+    "test:act": "act --container-options \"--user $(id -u):$(id -g) --group-add $(stat -c %g /var/run/docker.sock)\" --env-file .act.env --var-file .act.vars --secret-file .act.secrets workflow_dispatch -W .github/workflows/test.yml --eventpath .github/workflows/.act/event-workflow_call.json",
+    "test:act:verbose": "act --container-options \"--user $(id -u):$(id -g) --group-add $(stat -c %g /var/run/docker.sock)\" --env-file .act.env --var-file .act.vars --secret-file .act.secrets workflow_dispatch -W .github/workflows/test.yml --eventpath .github/workflows/.act/event-workflow_call.json -v",
+    "test:act:ci": "act --container-options \"--user $(id -u):$(id -g) --group-add $(stat -c %g /var/run/docker.sock)\" --env-file .act.env --var-file .act.vars --secret-file .act.secrets -W .github/workflows/ci.yml",
+    "test:act:release": "act --container-options \"--user $(id -u):$(id -g) --group-add $(stat -c %g /var/run/docker.sock)\" --env-file .act.env --var-file .act.vars --secret-file .act.secrets push --eventpath .github/workflows/.act/event-release.json -W .github/workflows/release.yml",
+    "test:act:release:verbose": "act --container-options \"--user $(id -u):$(id -g) --group-add $(stat -c %g /var/run/docker.sock)\" --env-file .act.env --var-file .act.vars --secret-file .act.secrets push --eventpath .github/workflows/.act/event-release.json -W .github/workflows/release.yml -v"
   },
   "keywords": [
     "git",
